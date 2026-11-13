@@ -1,0 +1,54 @@
+package com.project.ledgerflow.config;
+
+import org.redisson.Redisson;
+import org.redisson.api.RedissonClient;
+import org.redisson.config.Config;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
+import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
+import org.springframework.data.redis.core.StringRedisTemplate;
+
+@Configuration
+public class RedisConfig {
+
+    @Value("${spring.data.redis.host}")
+    private String host;
+
+    @Value("${spring.data.redis.port}")
+    private String port;
+
+    @Value("${spring.data.redis.password:}")
+    private String password;
+
+    @Bean
+    public RedissonClient redissonClient() {
+        Config config = new Config();
+        var singleServerConfig = config.useSingleServer()
+                .setAddress("redis://" + host + ":" + port)
+                .setTimeout(3000)        // Wait 3 seconds for a response
+                .setRetryAttempts(3)     // Try 3 times before giving up
+                .setRetryInterval(1500); // Wait 1.5 seconds between retries
+
+        if (password != null && !password.isBlank()) {
+            singleServerConfig.setPassword(password);
+        }
+
+        return Redisson.create(config);
+    }
+
+    @Bean
+    public LettuceConnectionFactory redisConnectionFactory() {
+        RedisStandaloneConfiguration configuration = new RedisStandaloneConfiguration(host, Integer.parseInt(port));
+        if (password != null && !password.isBlank()) {
+            configuration.setPassword(password);
+        }
+        return new LettuceConnectionFactory(configuration);
+    }
+
+    @Bean
+    public StringRedisTemplate stringRedisTemplate(LettuceConnectionFactory redisConnectionFactory) {
+        return new StringRedisTemplate(redisConnectionFactory);
+    }
+}
